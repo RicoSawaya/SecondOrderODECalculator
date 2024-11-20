@@ -1,0 +1,849 @@
+from tkinter import *
+import time
+import math
+from sympy import *
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+tk = Tk()
+FONT = ('Ariel', 15)
+tk.title('Second Order ODE calculator')
+
+global RLCmode
+def run():
+    plot = False
+    fig, ax = plt.subplots()
+    if RLCmode == True:
+        R = float(REntry.get())
+        L = float(LEntry.get())
+        C = float(CEntry.get())
+
+        a = R / L
+        b = 1/(C*L)
+        print(a)
+        print(b)
+
+    else:
+        a = float(aEntry.get())
+        b = float(bEntry.get())
+    rxVal = int(rxVar.get())
+
+    determinant = a ** 2 - 4 * b
+    # determinant is the (B^2 - 4ac), the numbers under the square root of the quadratic equation
+
+    if determinant == 0:  # here there is 1 solution if determinant is 0
+        print('1 real sol')
+        answer = -1 * a / (2)
+        print(answer)
+        x = symbols('x')
+        c1 = symbols('C1')
+        c2 = symbols('C2')
+        yH = sympify(c1 * exp(answer * x) + c2 * x * exp(answer * x))
+        print(yH)
+        print('y = ' + str(yH))
+
+
+
+
+    elif determinant > 0:  # here there is 2 solutios if determinant is 0
+        print('2 real sol')
+
+        answer1 = (-1 * a + determinant ** (0.5)) / (2)
+        answer2 = (-1 * a - determinant ** (0.5)) / (2)
+
+        print(answer1)
+        print(answer2)
+
+        x = symbols('x')
+        c1 = symbols('C1')
+        c2 = symbols('C2')
+
+        yH = sympify(c1 * exp(answer1 * x) + c2 * exp(answer2 * x))
+        print('y = ' + str(yH))
+
+    elif determinant < 0:  # here there is 2 imaginary solutions if determinant is 0
+        print('2 imaginary sol')
+
+        alpha = round((-1 * a) / 2, 2)
+        beta = round((determinant * -1) ** (0.5) / (2), 2)
+
+        print(str(alpha) + ' + ' + str(beta) + 'j')
+        print(str(alpha) + ' - ' + str(beta) + 'j')
+
+        x = symbols('x')
+        c1 = symbols('C1')
+        c2 = symbols('C2')
+
+        yH = sympify(exp(alpha * x) * (c1 * cos(beta * x) + c2 * sin(beta * x)))
+        print('y = ' + str(yH))
+
+    if int(rxHomoHeteroVar.get()) == 1:  # r(x) = 0
+        if int(initCondIntVar.get()) == 0:
+            answerLab.configure(text='y = ' + str(yH))
+        elif int(initCondIntVar.get()) == 1:
+            yPh = diff(yH, x)
+
+            yHSubsInitVals = yH.subs(x, 0)
+            SolvingC1Eq = Eq(yHSubsInitVals, float(YyEntry.get()))
+            c1Solved = solve(SolvingC1Eq, c1)[0]
+
+            yPhSubsInitVals = yPh.subs(x, 0)
+            yPhSubsInitVals = yPhSubsInitVals.subs(c1, c1Solved)
+            solvingC2Eq = Eq(yPhSubsInitVals, float(YPyEntry.get()))
+            c2Solved = float(solve(solvingC2Eq, c2)[0])
+
+            if c1Solved.free_symbols:
+                c1Solved = c1Solved.subs(c2, c2Solved)
+
+            print(c1Solved)
+            print(c2Solved)
+
+            finaleq = yH.subs(c1, c1Solved)
+            finaleq = finaleq.subs(c2, c2Solved)
+
+            answerLab.configure(text='y = ' + str(finaleq))
+            numericFunc = lambdify(x,finaleq,'numpy')
+            xPlots = np.linspace(0, 1000, 10000)
+            yPLots = numericFunc(xPlots)
+            ax.plot(xPlots, yPLots)
+            plot = True
+
+
+    elif int(rxHomoHeteroVar.get()) == 0:
+        if int(rxVal) == 0:
+            C = symbols('C')
+
+            Yp = sympify(C * exp(float(rx1Entry.get()) * x))
+
+            try:
+                if Yp.has(exp(answer * x)):
+                    Yp = Yp * x
+                    print('mod rule')
+                    if determinant == 0:
+                        Yp = Yp * x
+                        print('double mod rule')
+            except:
+                if Yp.has(exp(answer1 * x)) or Yp.has(exp(answer2 * x)):
+                    Yp = Yp * x
+                    print('mod rule')
+                    if determinant == 0:
+                        Yp = Yp * x
+                        print('double mod rule')
+
+            YpP = diff(Yp, x)
+            YpPP = diff(YpP, x)
+
+            LHSeq = YpPP + a * YpP + b * Yp
+            if RLCmode:
+                RHSeq = float(rx1EntryConstant.get()) / L * exp(float(rx1Entry.get()) * x)
+            else:
+                RHSeq = float(rx1EntryConstant.get()) * exp(float(rx1Entry.get()) * x)
+
+            rx1wholeEq = Eq(simplify(LHSeq), simplify(RHSeq))
+
+            Csolved = solve(rx1wholeEq, C)[0]
+
+            print('C Constant = ' + str(Csolved))
+
+            Yp = Yp.subs(C, Csolved)
+
+            AnswerWithConstants = simplify(yH + Yp)
+
+            if int(initCondIntVar.get()) == 0:  # there are not initial Conditions
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str(AnswerWithConstants.evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str(AnswerWithConstants.evalf(2)))
+
+            elif int(initCondIntVar.get()) == 1:  # there are initial Conditions
+                AnswerWithConstantsPrime = diff(AnswerWithConstants, x)
+
+                solvingRx1EqForConstantEq = Eq(AnswerWithConstants.subs(x, 0), float(YyEntry.get()))
+                c1Solved = solve(solvingRx1EqForConstantEq, c1)[0]
+                solvingC2Rx1Eq = Eq(AnswerWithConstantsPrime.subs(x, 0).subs(c1, c1Solved), float(YPyEntry.get()))
+                c2Solved = solve(solvingC2Rx1Eq, c2)[0]
+                if c1Solved.has(c2):
+                    eq = Eq(c1Solved, c2Solved)
+                    c1Solved = solve(eq, c1Solved)
+
+                finalAnswer = yH.subs(c1, c1Solved).subs(c2, c2Solved)
+                finalAnswer = finalAnswer + Yp
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str(finalAnswer.evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str(finalAnswer.evalf(2)))
+
+                numericFunc = lambdify(x, finalAnswer, 'numpy')
+                xPlots = np.linspace(0, 1000, 10000)
+                yPLots = numericFunc(xPlots)
+                ax.plot(xPlots, yPLots)
+                plot = True
+
+
+
+        elif int(rxVal) == 1:
+            d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z = symbols(('d', 'e', 'f', 'g', 'h', 'i',
+                                                                                           'j', 'k', 'l', 'm', 'n', 'o',
+                                                                                           'p', 'q', 'r', 's', 't', 'u',
+                                                                                           'v', 'w', 'x', 'y', 'z'))
+            symbolsList = [d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z]
+
+            px = ''
+
+            for i in range(int(rx2Entry.get()), -1, -1):
+                px += str(symbolsList[i]) + '*x' + str('**') + str(i) + '+'
+            px = px[0:-1]
+            px = sympify(px)
+            print(px)
+
+            if int(initCondIntVar.get()) == 0:
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str((px + yH).evalf(2)))
+
+                else:
+                    answerLab.configure(text='Y = ' + str((px + yH).evalf(2)))
+
+            elif int(initCondIntVar.get()) == 1:
+
+                finalFunc = px + yH
+                finalFuncPrime = diff(finalFunc, x)
+
+                c1Eq = Eq(finalFunc.subs(x, 0), float(YyEntry.get()))
+                c1Solved = solve(c1Eq, c1)[0]
+
+                c2Eq = Eq(finalFuncPrime.subs(x, 0).subs(c1, c1Solved), float(YPyEntry.get()))
+                c2Solved = solve(c2Eq, c2)[0]
+
+                if c1Solved.has(c2):
+                    finishingC1Eq = Eq(c1Solved, c2Solved)
+                    c1Solved = solve(finishingC1Eq, c1Solved)
+
+                finalFunc = finalFunc.subs(c1, c1Solved).subs(c2, c2Solved)
+
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str(finalFunc.evalf(2)))
+
+                else:
+                    answerLab.configure(text='Y = ' + str(finalFunc.evalf(2)))
+
+
+
+
+
+
+
+        elif int(rxVal) == 2:
+            print('cos')
+            M = symbols('M')
+            N = symbols('N')
+
+            Yp = sympify(M * cos(float(rx3Entry.get()) * x) + N * sin(float(rx3Entry.get()) * x))
+            # Modification rule for imaginary yH
+            if determinant < 0:
+                if float(beta) == float(rx3Entry.get()):
+                    print('mod rule')
+                    Yp = Yp * x
+
+            YpP = diff(Yp, x)
+            ypPP = diff(YpP, x)
+
+            rX = sympify(float(rx3EntryConstant.get()) * cos(float(rx3Entry.get()) * x))
+
+            LHS = ypPP + a * YpP + b * Yp
+
+
+            coefCOS = LHS.coeff(sympify(cos(float(rx3Entry.get()) * x)))
+            coefSIN = LHS.coeff(sympify(sin(float(rx3Entry.get()) * x)))
+
+            if RLCmode:
+                CoefCosEq = Eq(coefCOS, float(rx3EntryConstant.get()) / L)
+            else:
+                CoefCosEq = Eq(coefCOS, float(rx3EntryConstant.get()))
+
+            print(CoefCosEq)
+            try:
+                Msolved = solve(CoefCosEq, M)[0]
+
+                CoefSinEq = Eq(coefSIN.subs(M, Msolved), 0)
+                Nsolved = solve(CoefSinEq, N)[0]
+
+                if Msolved.has(N):
+                    Msolved = Msolved.subs(N, Nsolved)
+
+                Yp = Yp.subs(M, Msolved).subs(N, Nsolved)
+            except:
+                Nsolved = solve(CoefCosEq, N)[0]
+                CoefSinEq = Eq(coefSIN.subs(N, Nsolved), 0)
+                Msolved = solve(CoefSinEq, M)[0]
+                if Nsolved.has(M):
+                    Nsolved = Nsolved.subs(M, Msolved)
+
+                Yp = Yp.subs(M, Msolved).subs(N, Nsolved)
+
+
+            if int(initCondIntVar.get()) == 0:
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str((Yp + yH).evalf(2)))
+
+                else:
+                    answerLab.configure(text='Y = ' + str((Yp + yH).evalf(2)))
+
+            elif int(initCondIntVar.get()) == 1:
+                wholeAnswer = Yp + yH
+                wholeAnswerEq = Eq(wholeAnswer.subs(x, 0), float(YyEntry.get()))
+                c1Solved = solve(wholeAnswerEq, c1)[0]
+
+                wholeAnswerPrime = diff(wholeAnswer, x)
+                wholeAnswerPrimeEq = Eq(wholeAnswerPrime.subs(c1, c1Solved).subs(x, 0), float(YPyEntry.get()))
+                c2Solved = solve(wholeAnswerPrimeEq, c2)[0]
+
+                wholeAnswer = wholeAnswer.subs(c1, c1Solved).subs(c2, c2Solved)
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str(wholeAnswer.evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str(wholeAnswer.evalf(2)))
+
+                numericFunc = lambdify(x, wholeAnswer, 'numpy')
+                xPlots = np.linspace(0, 1000, 10000)
+                yPLots = numericFunc(xPlots)
+                ax.plot(xPlots, yPLots)
+                plot = True
+
+
+        elif int(rxVal) == 3:
+            print('sin')
+
+            M = symbols('M')
+            N = symbols('N')
+
+            Yp = sympify(M * cos(float(rx4Entry.get()) * x) + N * sin(float(rx4Entry.get()) * x))
+            # Modification rule for imaginary yH
+            if determinant < 0:
+                if float(beta) == float(rx4Entry.get()):
+                    print('mod rule')
+                    Yp = Yp * x
+
+            YpP = diff(Yp, x)
+            ypPP = diff(YpP, x)
+
+            rX = sympify(float(rx4EntryConstant.get()) * sin(float(rx4Entry.get()) * x))
+
+            LHS = ypPP + a * YpP + b * Yp
+
+
+            coefCOS = LHS.coeff(sympify(cos(float(rx4Entry.get()) * x)))
+            coefSIN = LHS.coeff(sympify(sin(float(rx4Entry.get()) * x)))
+
+            CoefCosEq = Eq(coefCOS, 0)
+            try:
+                Msolved = solve(CoefCosEq, M)[0]
+
+                if RLCmode:
+                    CoefSinEq = Eq(coefSIN.subs(M, Msolved), float(rx4EntryConstant.get())/L)
+                else:
+                    CoefSinEq = Eq(coefSIN.subs(M, Msolved), float(rx4EntryConstant.get()))
+
+                Nsolved = solve(CoefSinEq, N)[0]
+
+                if Msolved.has(N):
+                    Msolved = Msolved.subs(N, Nsolved)
+
+                Yp = Yp.subs(M, Msolved).subs(N, Nsolved)
+            except:
+                Nsolved = solve(CoefCosEq, N)[0]
+                CoefSinEq = Eq(coefSIN.subs(N, Nsolved), 0)
+                Msolved = solve(CoefSinEq, M)[0]
+                if Nsolved.has(M):
+                    Nsolved = Nsolved.subs(M, Msolved)
+
+                Yp = Yp.subs(M, Msolved).subs(N, Nsolved)
+
+            if int(initCondIntVar.get()) == 0:
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str((Yp + yH).evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str((Yp + yH).evalf(2)))
+
+            elif int(initCondIntVar.get()) == 1:
+                wholeAnswer = Yp + yH
+                wholeAnswerEq = Eq(wholeAnswer.subs(x, 0), float(YyEntry.get()))
+                c1Solved = solve(wholeAnswerEq, c1)[0]
+
+                wholeAnswerPrime = diff(wholeAnswer, x)
+                wholeAnswerPrimeEq = Eq(wholeAnswerPrime.subs(c1, c1Solved).subs(x, 0), float(YPyEntry.get()))
+                c2Solved = solve(wholeAnswerPrimeEq, c2)[0]
+
+                wholeAnswer = wholeAnswer.subs(c1, c1Solved).subs(c2, c2Solved)
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str(wholeAnswer.evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str(wholeAnswer.evalf(2)))
+
+                numericFunc = lambdify(x, wholeAnswer, 'numpy')
+                xPlots = np.linspace(0, 1000, 10000)
+                yPLots = numericFunc(xPlots)
+                ax.plot(xPlots, yPLots)
+                plot = True
+
+        elif rxVal == 4:
+            M = symbols('M')
+            N = symbols('N')
+
+            Yp = sympify((exp(float(rx5EntryExp.get()) * x)) * (
+                        M * cos(float(rx5EntryTrig.get()) * x) + N * sin(float(rx5EntryTrig.get()) * x)))
+            print(Yp)
+
+            if yH.has(exp(float(rx5EntryExp.get()) * x)) or determinant < 0 and float(beta) == float(
+                    rx5EntryTrig.get()):  # modification rule
+                print('first part modification rule')
+                Yp = Yp * x
+                if determinant == 0:
+                    Yp = Yp * x
+
+            YpP = diff(Yp, x)
+            YpPP = diff(YpP, x)
+
+            LHS = (YpPP + a * YpP + b * Yp)
+
+            LHS = simplify(LHS)
+
+            coefEXP = LHS.coeff(sympify(exp(float(rx5EntryExp.get()) * x)))
+            coefCOS = coefEXP.coeff(sympify(cos(float(rx5EntryTrig.get()) * x)))
+            if RLCmode:
+                COSeq = Eq(coefCOS, float(rx5EntryConsant.get())/L)
+            else:
+                COSeq = Eq(coefCOS, float(rx5EntryConsant.get()))
+
+            Msolved = solve(COSeq, M)[0]
+            coefSIN = coefEXP.coeff(sympify(sin(float(rx5EntryTrig.get()) * x)))
+            SINeq = Eq(coefSIN.subs(M, Msolved), 0)
+            Nsolved = solve(SINeq, N)[0]
+
+            if Msolved.has(N):
+                Msolved = Msolved.subs(N, Nsolved)
+
+            Yp = Yp.subs(M, Msolved).subs(N, Nsolved)
+
+            if int(initCondIntVar.get()) == 0:  # no initial conditiions
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str((Yp + yH).evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str((Yp + yH).evalf(2)))
+
+            elif int(initCondIntVar.get()) == 1:  # with inital conditions
+
+                wholeAns = simplify(Yp + yH)
+                wholeAnsPrime = diff(wholeAns, x)
+
+                wholeAnsEq = Eq(wholeAns.subs(x, 0), float(YyEntry.get()))
+                c1Solved = solve(wholeAnsEq, c1)[0]
+
+                wholeAnsPrimeEq = Eq(wholeAnsPrime.subs(x, 0).subs(c1, c1Solved), float(YPyEntry.get()))
+                c2Solved = solve(wholeAnsPrimeEq, c2)[0]
+
+                if c1Solved.has(c2):
+                    finishingC1Eq = Eq(c1Solved, c2Solved)
+                    c1Solved = solve(finishingC1Eq, c1Solved)[0]
+
+                yH = yH.subs(c1, c1Solved).subs(c2, c2Solved)
+
+                finalAns = simplify(Yp + yH)
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str(finalAns.evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str(finalAns.evalf(2)))
+
+                numericFunc = lambdify(x, finalAns, 'numpy')
+                xPlots = np.linspace(0, 1000, 10000)
+                yPLots = numericFunc(xPlots)
+                ax.plot(xPlots, yPLots)
+                plot = True
+
+
+        elif rxVal == 5:
+            M = symbols('M')
+            N = symbols('N')
+
+            Yp = sympify((exp(float(rx6EntryExp.get()) * x)) * (
+                        M * cos(float(rx6EntryTrig.get()) * x) + N * sin(float(rx6EntryTrig.get()) * x)))
+            print(Yp)
+
+            if yH.has(exp(float(rx6EntryExp.get()) * x)) or determinant < 0 and float(beta) == float(
+                    rx6EntryTrig.get()):  # modification rule
+                print('first part modification rule')
+                Yp = Yp * x
+                if determinant == 0:
+                    Yp = Yp * x
+
+            YpP = diff(Yp, x)
+            YpPP = diff(YpP, x)
+
+            LHS = YpPP + a * YpP + b * Yp
+
+            LHS = simplify(LHS)
+
+            print('LHS')
+            print(LHS)
+
+            coefEXP = LHS.coeff(sympify(exp(float(rx6EntryExp.get()) * x)))
+            coefSIN = coefEXP.coeff(sympify(sin(float(rx6EntryTrig.get()) * x)))
+
+            if RLCmode:
+                SINeq = Eq(coefSIN, float(rx6EntryConsant.get())/L)
+            else:
+                SINeq = Eq(coefSIN, float(rx6EntryConsant.get()))
+
+            Msolved = solve(SINeq, M)[0]
+
+            coefCOS = coefEXP.coeff(sympify(cos(float(rx6EntryTrig.get()) * x)))
+            COSeq = Eq(coefCOS.subs(M, Msolved), 0)
+            Nsolved = solve(COSeq, N)[0]
+            print(coefCOS)
+
+            if Msolved.has(N):
+                Msolved = Msolved.subs(N, Nsolved)
+
+            Yp = Yp.subs(M, Msolved).subs(N, Nsolved)
+
+            if int(initCondIntVar.get()) == 0:  # no initial conditiions
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str((Yp + yH).evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str((Yp + yH).evalf(2)))
+
+            elif int(initCondIntVar.get()) == 1:  # with inital conditions
+
+                wholeAns = simplify(Yp + yH)
+                wholeAnsPrime = diff(wholeAns, x)
+
+                wholeAnsEq = Eq(wholeAns.subs(x, 0), float(YyEntry.get()))
+                c1Solved = solve(wholeAnsEq, c1)[0]
+
+                wholeAnsPrimeEq = Eq(wholeAnsPrime.subs(x, 0).subs(c1, c1Solved), float(YPyEntry.get()))
+                c2Solved = solve(wholeAnsPrimeEq, c2)[0]
+
+                if c1Solved.has(c2):
+                    finishingC1Eq = Eq(c1Solved, c2Solved)
+                    c1Solved = solve(finishingC1Eq, c1Solved)[0]
+
+                yH = yH.subs(c1, c1Solved).subs(c2, c2Solved)
+
+                finalAns = Yp + yH
+                if RLCmode:
+                    answerLab.configure(text='I = ' + str(finalAns.evalf(2)))
+                else:
+                    answerLab.configure(text='Y = ' + str(finalAns.evalf(2)))
+
+                numericFunc = lambdify(x, finalAns, 'numpy')
+                xPlots = np.linspace(0, 1000, 10000)
+                yPLots = numericFunc(xPlots)
+                ax.plot(xPlots, yPLots)
+                plot = True
+    if plot:
+        ax.set_title('Function Plotted')
+        ax.set_xlabel('x-axis')
+        ax.set_ylabel('y-axis')
+        #plt.legend(loc='upper left', shadow=False, title="Legend")
+        xAxis1 = np.linspace(-1000,1000,2)
+        xAxis2 = np.linspace(0,0,2)
+        yAxis1 = np.linspace(-1000,1000,2)
+        yAxis2 = np.linspace(0,0,2)
+
+        ax.plot(xAxis1,xAxis2,color = 'black')
+        ax.plot(yAxis2,yAxis1,color = 'black')
+
+
+        ax.set_xlim(0, 20)
+        ax.set_ylim(-100, 100)
+        plt.show()
+
+
+
+def runRx1():  # this is 1st of the R(x) sequences when R(x) != 0
+    rx2Page.place_forget()
+    rx3Page.place_forget()
+    rx4Page.place_forget()
+    rx1Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+    rx5Page.place_forget()
+    rx6Page.place_forget()
+
+
+def runRx2():  # this is the 2nd of the R(x) sequences when R(x) != 0
+    rx4Page.place_forget()
+    rx3Page.place_forget()
+    rx1Page.place_forget()
+    rx2Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+    rx5Page.place_forget()
+    rx6Page.place_forget()
+
+
+def runRx3():  # this is the 3rd of the R(x) sequences when R(x) != 0
+    rx2Page.place_forget()
+    rx4Page.place_forget()
+    rx1Page.place_forget()
+    rx3Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+    rx5Page.place_forget()
+    rx6Page.place_forget()
+
+
+def runRx4():  # this is the 4th of the R(x) sequences when R(x) != 0
+    rx2Page.place_forget()
+    rx3Page.place_forget()
+    rx1Page.place_forget()
+    rx4Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+    rx5Page.place_forget()
+    rx6Page.place_forget()
+
+
+def runRx5():
+    rx2Page.place_forget()
+    rx3Page.place_forget()
+    rx1Page.place_forget()
+    rx5Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+    rx6Page.place_forget()
+    rx4Page.place_forget()
+
+
+def runRx6():
+    rx2Page.place_forget()
+    rx3Page.place_forget()
+    rx1Page.place_forget()
+    rx6Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+    rx5Page.place_forget()
+    rx4Page.place_forget()
+
+
+def placeAllRx():  # function that places all R(x) functions, This is used when R(x) != 0
+    rxTableName.place(relx=0.2, rely=0.25, anchor=CENTER)
+    RpXTableName.place(relx=0.75, rely=0.25, anchor=CENTER)
+    rx1.place(relx=0.1, rely=0.3)
+    rx2.place(relx=0.1, rely=0.35)
+    rx3.place(relx=0.1, rely=0.4)
+    rx4.place(relx=0.1, rely=0.45)
+    rx5.place(relx=0.1, rely=0.5)
+    rx6.place(relx=0.1, rely=0.55)
+    rx1Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+    rxVar.set(0)
+    rx2Page.place_forget()
+    rx3Page.place_forget()
+    rx4Page.place_forget()
+
+
+def removeAllRx():  # function that removes all R(x) functions, This is used when R(x) = 0
+    rxTableName.place_forget()
+    RpXTableName.place_forget()
+    rx1.place_forget()
+    rx2.place_forget()
+    rx3.place_forget()
+    rx4.place_forget()
+    rx5.place_forget()
+    rx6.place_forget()
+    rx1Page.place_forget()
+    rx2Page.place_forget()
+    rx3Page.place_forget()
+    rx4Page.place_forget()
+
+
+def removeInitConds():  # Function to Remove the initial conditions
+    initCondCanvas.place_forget()
+
+
+def placeInitConds():  # Function to place the initial conditions
+    initCondCanvas.place(relx=0.75, rely=0.72, anchor=CENTER)
+
+def placeRLC():
+    global RLCmode
+    RLCmode = True
+    yDoublePrimeLabel.place_forget()
+    aEntry.place_forget()
+    yPrimeLabel.place_forget()
+    bEntry.place_forget()
+    yLabel.place_forget()
+    RLCmodeBut.place_forget()
+    rxLabel.place_forget()
+
+    RevertRLCBut.place(relx=0.88, rely=0.18,anchor = CENTER)
+    RLab.place(relx=0.15,rely=0.1,anchor = CENTER)
+    REntry.place(relx=0.23,rely=0.1,anchor = CENTER)
+    LLab.place(relx=0.32,rely=0.1,anchor = CENTER)
+    LEntry.place(relx=0.4,rely=0.1,anchor = CENTER)
+    CLab.place(relx=0.49,rely=0.1,anchor = CENTER)
+    CEntry.place(relx=0.57,rely=0.1,anchor = CENTER)
+def removeRLC():
+    global RLCmode
+    RLCmode = False
+    yDoublePrimeLabel.place(relx=0.2, rely=0.1, anchor=CENTER)
+    aEntry.place(relx=0.29, rely=0.1, anchor=CENTER, width=35)
+    yPrimeLabel.place(relx=0.40, rely=0.1, anchor=CENTER)
+    bEntry.place(relx=0.49, rely=0.1, anchor=CENTER, width=35)
+    yLabel.place(relx=0.57, rely=0.1, anchor=CENTER)
+    rxLabel.place(relx=0.67, rely=0.1, anchor=CENTER)
+    RLab.place_forget()
+    LLab.place_forget()
+    CLab.place_forget()
+    REntry.place_forget()
+    LEntry.place_forget()
+    CEntry.place_forget()
+    RLCmodeBut.place(relx=0.88, rely=0.18, anchor=CENTER)
+    RevertRLCBut.place_forget()
+
+yDoublePrimeLabel = Label(tk, text="Y'' + ", font=FONT)
+yDoublePrimeLabel.place(relx=0.2, rely=0.1, anchor=CENTER)
+
+aEntry = Entry(tk, font=FONT)  # this is the entry that is infront of Y'
+aEntry.place(relx=0.29, rely=0.1, anchor=CENTER, width=35)
+
+yPrimeLabel = Label(tk, text="Y' + ", font=FONT)
+yPrimeLabel.place(relx=0.40, rely=0.1, anchor=CENTER)
+
+bEntry = Entry(tk, font=FONT)  # This is the entry that is infront of Y
+bEntry.place(relx=0.49, rely=0.1, anchor=CENTER, width=35)
+
+yLabel = Label(tk, text="Y", font=FONT)
+yLabel.place(relx=0.57, rely=0.1, anchor=CENTER)
+
+rxLabel = Label(tk,text = '= R(x)',font = FONT)
+rxLabel.place(relx=0.67,rely=0.1,anchor = CENTER)
+
+rxTableName = Label(tk, text='R(x)', font=FONT)
+rxTableName.place(relx=0.2, rely=0.25, anchor=CENTER)
+
+RpXTableName = Label(tk, text='R(x)', font=FONT)
+RpXTableName.place(relx=0.75, rely=0.25, anchor=CENTER)
+
+rxHomoHeteroVar = IntVar()  # This is the variable that we reference to see if R(x) is equal to 0 or not. if this variable = 0, r(x) !=0, and visa versa
+rxHomoHeteroVar.set(0)
+
+homoRadio = Radiobutton(tk, text='R(x) != 0', value=0, variable=rxHomoHeteroVar, font=FONT, command=placeAllRx)
+heteroRadio = Radiobutton(tk, text='R(x) = 0', value=1, variable=rxHomoHeteroVar, font=FONT, command=removeAllRx)
+
+homoRadio.place(relx=0.33, rely=0.2, anchor=CENTER)
+heteroRadio.place(relx=0.66, rely=0.2, anchor=CENTER)
+
+# all these 'rxs' are what type of equation r(x) looks like if it doesn't equal 0.
+rxVar = IntVar()
+rxVar.set(0)
+
+rx1 = Radiobutton(tk, text='Ke^(r*x)', variable=rxVar, value=0, font=FONT, command=runRx1)
+rx2 = Radiobutton(tk, text='K*x^n', variable=rxVar, value=1, font=FONT, command=runRx2)
+rx3 = Radiobutton(tk, text='K*cos(wx)', variable=rxVar, value=2, font=FONT, command=runRx3)
+rx4 = Radiobutton(tk, text='K*sin(wx)', variable=rxVar, value=3, font=FONT, command=runRx4)
+rx5 = Radiobutton(tk, text='K*e^(r*x)*cos(wx)', variable=rxVar, value=4, font=FONT, command=runRx5)
+rx6 = Radiobutton(tk, text='K*e^(r*x)*sin(wx)', variable=rxVar, value=5, font=FONT, command=runRx6)
+
+rx1.place(relx=0.1, rely=0.3)
+rx2.place(relx=0.1, rely=0.35)
+rx3.place(relx=0.1, rely=0.4)
+rx4.place(relx=0.1, rely=0.45)
+rx5.place(relx=0.1, rely=0.5)
+rx6.place(relx=0.1, rely=0.55)
+# ---------------------------------------------------
+
+# below is each page that will be placed depending on which sequence the user chooses r(x) to be
+rx1Page = Canvas(tk, width=250, height=200)
+rx1Page.place(relx=0.75, rely=0.45, anchor=CENTER)
+rx1Ylab = Label(rx1Page, text='r=     e^(      *x)', font=FONT)
+rx1Ylab.place(relx=0.5, rely=0.5, anchor=CENTER)
+rx1Entry = Entry(rx1Page, width=2, font=FONT)
+rx1Entry.place(relx=0.6, rely=0.5, anchor=CENTER)
+rx1EntryConstant = Entry(rx1Page, width=2, font=FONT)
+rx1EntryConstant.place(relx=0.37, rely=0.5, anchor=CENTER)
+
+rx2Page = Canvas(tk, width=250, height=200)
+rx2Ylab = Label(rx2Page, text='r=      x^(      )', font=FONT)
+rx2Ylab.place(relx=0.5, rely=0.5, anchor=CENTER)
+rx2Entry = Entry(rx2Page, width=2, font=FONT)
+rx2Entry.place(relx=0.65, rely=0.5, anchor=CENTER)
+rx2EntryConstant = Entry(rx2Page, width=2, font=FONT)
+rx2EntryConstant.place(relx=0.41, rely=0.5, anchor=CENTER)
+
+rx3Page = Canvas(tk, width=250, height=200)
+rxX3Label = Label(rx3Page, text='r=             (            x)', font=FONT)
+rx3LabelCos = Label(rx3Page, text='Cos', font=FONT)
+rx3EntryConstant = Entry(rx3Page, font=FONT, width=2)
+rx3Entry = Entry(rx3Page, font=FONT, width=5)
+rxX3Label.place(relx=0.5, rely=0.5, anchor=CENTER)
+rx3LabelCos.place(relx=0.4, rely=0.5, anchor=CENTER)
+rx3Entry.place(relx=0.68, rely=0.5, anchor=CENTER)
+rx3EntryConstant.place(relx=0.26, rely=0.5, anchor=CENTER)
+
+rx4Page = Canvas(tk, width=250, height=200)
+rxX4Label = Label(rx4Page, text='r=             (            x)', font=FONT)
+rx4LabelCos = Label(rx4Page, text='Sin', font=FONT)
+rx4EntryConstant = Entry(rx4Page, font=FONT, width=2)
+rx4Entry = Entry(rx4Page, font=FONT, width=5)
+rxX4Label.place(relx=0.5, rely=0.5, anchor=CENTER)
+rx4LabelCos.place(relx=0.4, rely=0.5, anchor=CENTER)
+rx4Entry.place(relx=0.68, rely=0.5, anchor=CENTER)
+rx4EntryConstant.place(relx=0.26, rely=0.5, anchor=CENTER)
+
+rx5Page = Canvas(tk, width=250, height=200)
+rx5Label = Label(rx5Page, text='r=      e^(      x)(cos       x)', font=FONT)
+rx5EntryConsant = Entry(rx5Page, font=FONT, width=2)
+rx5EntryExp = Entry(rx5Page, font=FONT, width=2)
+rx5EntryTrig = Entry(rx5Page, font=FONT, width=3)
+
+rx5Label.place(relx=0.5, rely=0.5, anchor=CENTER)
+rx5EntryConsant.place(relx=0.2, rely=0.5, anchor=CENTER)
+rx5EntryExp.place(relx=0.44, rely=0.5, anchor=CENTER)
+rx5EntryTrig.place(relx=0.8, rely=0.5, anchor=CENTER)
+
+rx6Page = Canvas(tk, width=250, height=200)
+rx6Label = Label(rx6Page, text='r=      e^(      x)(sin       x)', font=FONT)
+rx6Label.place(relx=0.5, rely=0.5, anchor=CENTER)
+rx6EntryConsant = Entry(rx6Page, font=FONT, width=2)
+rx6EntryExp = Entry(rx6Page, font=FONT, width=2)
+rx6EntryTrig = Entry(rx6Page, font=FONT, width=3)
+
+rx6EntryConsant.place(relx=0.2, rely=0.5, anchor=CENTER)
+rx6EntryExp.place(relx=0.44, rely=0.5, anchor=CENTER)
+rx6EntryTrig.place(relx=0.8, rely=0.5, anchor=CENTER)
+
+initialConditionTxt = Label(tk, text='Initial conditions?', font=FONT)
+initialConditionTxt.place(relx=0.5, rely=0.65, anchor=CENTER)
+
+initCondIntVar = IntVar()  # this is the variable that the user can change to have initial conditions, or not, if there are no initial confitions, we leave some variables blank (C1 and C2) and if there are initial conditions, we can solve for them
+initCondIntVar.set(0)
+
+initCondNoBut = Radiobutton(tk, text='No', variable=initCondIntVar, value=0, font=FONT, command=removeInitConds)
+initCondYesBut = Radiobutton(tk, text='Yes', variable=initCondIntVar, value=1, font=FONT, command=placeInitConds)
+
+initCondNoBut.place(relx=0.2, rely=0.7, anchor=CENTER)
+initCondYesBut.place(relx=0.4, rely=0.7, anchor=CENTER)
+
+initCondCanvas = Canvas(tk, width=250, height=50)
+
+initCondY = Label(initCondCanvas, text='Y( 0 ) = ', font=FONT)
+initCondY.place(relx=0.2, rely=0.5, anchor=CENTER)
+
+YyEntry = Entry(initCondCanvas, width=2, font=FONT)
+YyEntry.place(relx=0.4, rely=0.5, anchor=CENTER)  # this is the first initial condition for what Y(0) equals
+
+initCondYPrime = Label(initCondCanvas, text="Y'( 0 ) = ", font=FONT)
+initCondYPrime.place(relx=0.65, rely=0.5, anchor=CENTER)
+
+YPyEntry = Entry(initCondCanvas, width=2, font=FONT)
+YPyEntry.place(relx=0.85, rely=0.5, anchor=CENTER)  # this is the second initial condition for what Y'(0) equals
+
+answerLab = Label(tk, text='', font=FONT, wraplength=480)
+answerLab.place(relx=0.5, rely=0.85, anchor=CENTER)
+
+runBut = Button(tk, text='run', font=FONT, bg='green', command=run)  # this is the button that runs the whole system
+runBut.place(relx=0.9, rely=0.1, anchor=CENTER)
+
+RLCmodeBut = Button(tk,text = 'RLC mode',font = FONT,bg = 'light blue',command = placeRLC)
+RLCmodeBut.place(relx=0.88, rely=0.18, anchor=CENTER)
+
+RevertRLCBut = Button(tk,text = 'Revert',font = FONT,bg = 'red',command = removeRLC)
+
+RLab = Label(tk,text = 'R = ',font = FONT)
+LLab = Label(tk,text = 'L = ',font = FONT)
+CLab = Label(tk,text = 'C = ',font = FONT)
+REntry = Entry(tk,font = FONT,width = 3)
+LEntry = Entry(tk,font = FONT,width = 3)
+CEntry = Entry(tk,font = FONT,width = 3)
+removeRLC()
+
+tk.geometry('500x600')
+tk.mainloop()
