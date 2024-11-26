@@ -14,7 +14,7 @@ global RLCmode
 def run():
     plot = False
     fig, ax = plt.subplots()
-    if RLCmode == True:
+    if RLCmode == True: #if it is in RLC mode, it creates the necessary variables
         R = float(REntry.get())
         L = float(LEntry.get())
         C = float(CEntry.get())
@@ -24,10 +24,10 @@ def run():
         print(a)
         print(b)
 
-    else:
+    else: # if not RLC mode, it creates the necessary variables
         a = float(aEntry.get())
         b = float(bEntry.get())
-    rxVal = int(rxVar.get())
+    rxVal = int(rxVar.get()) # the value of what the Right Hand Side is (r(x))
 
     determinant = a ** 2 - 4 * b
     # determinant is the (B^2 - 4ac), the numbers under the square root of the quadratic equation
@@ -79,9 +79,9 @@ def run():
         print('y = ' + str(yH))
 
     if int(rxHomoHeteroVar.get()) == 1:  # r(x) = 0
-        if int(initCondIntVar.get()) == 0:
+        if int(initCondIntVar.get()) == 0: # if there is not initial conditions
             answerLab.configure(text='y = ' + str(yH))
-        elif int(initCondIntVar.get()) == 1:
+        elif int(initCondIntVar.get()) == 1:# if there is initial conditions
             yPh = diff(yH, x)
 
             yHSubsInitVals = yH.subs(x, 0)
@@ -102,16 +102,16 @@ def run():
             finaleq = yH.subs(c1, c1Solved)
             finaleq = finaleq.subs(c2, c2Solved)
 
-            answerLab.configure(text='y = ' + str(finaleq))
-            numericFunc = lambdify(x,finaleq,'numpy')
+            answerLab.configure(text='y = ' + str(finaleq)) #outputs the whole answer
+            numericFunc = lambdify(x,finaleq,'numpy') #plots the answer into matplot lib 
             xPlots = np.linspace(0, 1000, 10000)
             yPLots = numericFunc(xPlots)
             ax.plot(xPlots, yPLots)
             plot = True
 
 
-    elif int(rxHomoHeteroVar.get()) == 0:
-        if int(rxVal) == 0:
+    elif int(rxHomoHeteroVar.get()) == 0: # r(x) is not equal to 0
+        if int(rxVal) == 0: # first case of r(x) 
             C = symbols('C')
 
             Yp = sympify(C * exp(float(rx1Entry.get()) * x))
@@ -182,7 +182,7 @@ def run():
 
 
 
-        elif int(rxVal) == 1:
+        elif int(rxVal) == 1: #second case of r(x)
             d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z = symbols(('d', 'e', 'f', 'g', 'h', 'i',
                                                                                            'j', 'k', 'l', 'm', 'n', 'o',
                                                                                            'p', 'q', 'r', 's', 't', 'u',
@@ -233,7 +233,7 @@ def run():
 
 
 
-        elif int(rxVal) == 2:
+        elif int(rxVal) == 2: #3rd case of r(x)
             print('cos')
             M = symbols('M')
             N = symbols('N')
@@ -311,7 +311,7 @@ def run():
                 plot = True
 
 
-        elif int(rxVal) == 3:
+        elif int(rxVal) == 3:#4th case of r(x)
             print('sin')
 
             M = symbols('M')
@@ -386,7 +386,7 @@ def run():
                 ax.plot(xPlots, yPLots)
                 plot = True
 
-        elif rxVal == 4:
+        elif rxVal == 4: #5th case of r(x)
             M = symbols('M')
             N = symbols('N')
 
@@ -461,7 +461,7 @@ def run():
                 plot = True
 
 
-        elif rxVal == 5:
+        elif rxVal == 5: #6th case of r(x)
             M = symbols('M')
             N = symbols('N')
 
@@ -506,7 +506,7 @@ def run():
 
             Yp = Yp.subs(M, Msolved).subs(N, Nsolved)
 
-            if int(initCondIntVar.get()) == 0:  # no initial conditiions
+            if int(initCondIntVar.get()) == 0:  # no initial conditions
                 if RLCmode:
                     answerLab.configure(text='I = ' + str((Yp + yH).evalf(2)))
                 else:
@@ -540,7 +540,7 @@ def run():
                 yPLots = numericFunc(xPlots)
                 ax.plot(xPlots, yPLots)
                 plot = True
-    if plot:
+    if plot: #plots only if there are inital conditions (all variables are solved for)
         ax.set_title('Function Plotted')
         ax.set_xlabel('x-axis')
         ax.set_ylabel('y-axis')
@@ -550,13 +550,13 @@ def run():
         yAxis1 = np.linspace(-1000,1000,2)
         yAxis2 = np.linspace(0,0,2)
 
-        ax.plot(xAxis1,xAxis2,color = 'black')
+        ax.plot(xAxis1,xAxis2,color = 'black')# plots a x,y axis
         ax.plot(yAxis2,yAxis1,color = 'black')
 
-
-        ax.set_xlim(0, 20)
+        #the view range and domain
+        ax.set_xlim(0, 20) 
         ax.set_ylim(-100, 100)
-        plt.show()
+        plt.show() #shows plot
 
 
 
